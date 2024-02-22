@@ -38,33 +38,26 @@ void renderSnake(Snake **p, int *canvas);
 void enqueueSnake(Snake **p);
 void eraseTrace(Snake **p, int *canvas);
 void initSnake(Snake **p);
+void moveSnake(Snake **p);
 void initFood(Food **p);
 void initCanvas(int *canvas);
 int checkFoodCollected(Snake *snk, Food *food);
 int foodRendered(Food *food);
 void renderFood(Food **p, int *canvas);
 void renderPoints(Snake *snk);
+void renderCredits();
 int checkCollision(Snake *snk, int *canvas);
 void gameOver(Snake *snk);
 
 int main(){
     srand(time(NULL)); // INITIALIZING RANDOM SEED
-    // INITIALIZING WINDOWS API INPUT HANDLE
-    HANDLE hInput = GetStdHandle(STD_INPUT_HANDLE);
-    INPUT_RECORD inputRecord;
-    DWORD events;
-    BOOL running = TRUE;
-
-    // Set console mode to enable input events
-    SetConsoleMode(hInput, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT);
-
-    int canvas[CANVAS_HEIGHT*CANVAS_WIDTH]={0}; // SPACES
-    initCanvas(canvas);
+    int canvas[CANVAS_HEIGHT*CANVAS_WIDTH]={0};
+    initCanvas(canvas); // INITIALIZING CANVAS WITH SPACES
     Snake *snk=NULL;
     Food *food=NULL;
-    int snake_moved=0;
     initSnake(&snk);
     initFood(&food);
+    // MAIN GAME LOOP
     while(1){
         system("cls");
         renderTitle();
@@ -73,47 +66,29 @@ int main(){
         renderCanvas(canvas);
         renderPoints(snk);
         printQueue(snk->tail_queue);
-        if (ReadConsoleInput(hInput, &inputRecord, 1, &events)) {
-            // Filter for key down events only
-            if (inputRecord.EventType == KEY_EVENT && inputRecord.Event.KeyEvent.bKeyDown) {
-                // Check if 'A' was pressed
-                if (inputRecord.Event.KeyEvent.wVirtualKeyCode == 'A' && (snk->snake_direction!='d' || snk->size==1)){
-                    enqueueSnake(&snk);
-                    snk->width_pos--;
-                    snk->snake_direction='a';
-                    snake_moved=1;
-                }
-                // Check if 'W' was pressed
-                if (inputRecord.Event.KeyEvent.wVirtualKeyCode == 'W' && (snk->snake_direction!='s' || snk->size==1)){
-                    enqueueSnake(&snk);
-                    snk->height_pos--;
-                    snk->snake_direction='w';
-                    snake_moved=1;
-                }
-                // Check if 'S' was pressed
-                if (inputRecord.Event.KeyEvent.wVirtualKeyCode == 'S' && (snk->snake_direction!='w' || snk->size==1)){
-                    enqueueSnake(&snk);
-                    snk->height_pos++;
-                    snk->snake_direction='s';
-                    snake_moved=1;
-                }
-                // Check if 'D' was pressed
-                if (inputRecord.Event.KeyEvent.wVirtualKeyCode == 'D' && (snk->snake_direction!='a' || snk->size==1)){
-                    enqueueSnake(&snk);
-                    snk->width_pos++;
-                    snk->snake_direction='d';
-                    snake_moved=1;
-                }
-                if(snake_moved){
-                    if(checkCollision(snk, canvas)){
-                        break;
-                    }
-                    if(!checkFoodCollected(snk, food) && (snake_moved)){
-                        eraseTrace(&snk, canvas); // ERASE TRACE
-                    }
-                }
-                snake_moved = 0;
-            }
+        renderCredits();
+
+        // CHECK FOR KEY PRESS EVENTS
+        if((GetAsyncKeyState('A') & 0x8000) && (snk->snake_direction!='d' || snk->size==1)){
+           snk->snake_direction='a'; 
+        }
+        if((GetAsyncKeyState('W') & 0x8000) && (snk->snake_direction!='s' || snk->size==1)){
+           snk->snake_direction='w'; 
+        }
+        if((GetAsyncKeyState('S') & 0x8000) && (snk->snake_direction!='w' || snk->size==1)){
+           snk->snake_direction='s'; 
+        }
+        if((GetAsyncKeyState('D') & 0x8000) && (snk->snake_direction!='a' || snk->size==1)){
+           snk->snake_direction='d'; 
+        }
+        moveSnake(&snk);
+        // CHECK FOR GAME OVER
+        if(checkCollision(snk, canvas)){
+            break;
+        }
+        if(!checkFoodCollected(snk, food)){
+            // DELETING SNAKE TRACES BASED ON SNAKE SIZE
+            eraseTrace(&snk, canvas);
         }
 
         // CHECKING IF OUT OF BOUNDS
@@ -129,11 +104,20 @@ int main(){
         if(snk->width_pos<0){
             snk->width_pos=CANVAS_WIDTH-3;
         }
+
+        // DELAY FOR CONTROLLING SNAKE SPEED
+        if(snk->snake_direction=='a' || snk->snake_direction=='d'){
+            Sleep(10);
+        }
+        else{
+            Sleep(25);
+        }
     }
 
     system("cls");
     gameOver(snk);
 
+    // FREEING MANUALLY ALLOCATED VARIABLES
     freeQueue(&snk->tail_queue);
     free(snk);
     free(food);
@@ -212,6 +196,26 @@ void renderSnake(Snake **p, int *canvas){
 }
 
 
+void moveSnake(Snake **p){
+    Snake *snk = *p;
+    enqueueSnake(&snk);
+    switch (snk->snake_direction){
+        case 'a':
+            snk->width_pos--;
+            break;
+        case 'w':
+            snk->height_pos--;
+            break;
+        case 's':
+            snk->height_pos++;
+            break;
+        default:
+            snk->width_pos++;
+            break;
+    }
+}
+
+
 void enqueueSnake(Snake **p){
     Snake *snk = *p;
     enqueue(&snk->tail_queue, snk->head_pos);
@@ -253,6 +257,11 @@ void renderFood(Food **p, int *canvas){
 
 void renderPoints(Snake *snk){
     printf("\n\nYour points: %d\n", snk->size-1);
+}
+
+
+void renderCredits(){
+    printf("\n\nBy: Clib/Horsey\n");
 }
 
 
